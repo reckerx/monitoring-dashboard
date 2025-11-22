@@ -9,7 +9,7 @@ A production-grade, containerized, Kubernetes-ready **Monitoring Dashboard** con
 * **CI/CD Pipeline** using GitHub Actions
 * Clean modular folder structure
 
-This README is aligned with the complete deliverable list from the official assignment.
+This README is aligned with the complete deliverable list.
 
 ---
 
