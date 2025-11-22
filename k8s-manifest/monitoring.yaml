@@ -1,0 +1,155 @@
+# Namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+
+---
+# ConfigMap for backend
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  namespace: monitoring
+data:
+  NODE_ENV: "production"
+  PORT: "8000"
+
+---
+# Backend Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: monitoring-backend
+  namespace: monitoring
+  labels:
+    app: monitoring-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: monitoring-backend
+  template:
+    metadata:
+      labels:
+        app: monitoring-backend
+    spec:
+      containers:
+        - name: monitoring-backend
+          image: monitoring-backend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: backend-config
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "250m"
+              memory: "256Mi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 2
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+
+---
+# Backend Service (NodePort)
+apiVersion: v1
+kind: Service
+metadata:
+  name: monitoring-backend-service
+  namespace: monitoring
+  labels:
+    app: monitoring-backend
+spec:
+  type: NodePort
+  selector:
+    app: monitoring-backend
+  ports:
+    - name: http
+      port: 8000        # Cluster IP port
+      targetPort: 8000  # Container port
+      nodePort: 30080   # NodePort
+
+---
+# Frontend Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: monitoring-frontend
+  namespace: monitoring
+  labels:
+    app: monitoring-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: monitoring-frontend
+  template:
+    metadata:
+      labels:
+        app: monitoring-frontend   
+    spec:
+      containers:
+        - name: monitoring-frontend
+          image: monitoring-frontend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "250m"
+              memory: "256Mi"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 2
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+
+---
+# Frontend Service (NodePort)
+apiVersion: v1
+kind: Service
+metadata:
+  name: monitoring-frontend
+  namespace: monitoring
+  labels:
+    app: monitoring-frontend  
+spec:
+  type: NodePort
+  selector:
+    app: monitoring-frontend
+  ports:
+    - name: http
+      port: 80       # Cluster IP port
+      targetPort: 80 # Container port
+      nodePort: 30000

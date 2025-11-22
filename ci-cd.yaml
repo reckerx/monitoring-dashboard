@@ -1,0 +1,129 @@
+name: Monitoring Dashboard CI/CD
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  BACKEND_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/monitoringdashboard-backend
+  FRONTEND_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/monitoringdashboard-frontend
+
+jobs:
+  # ---------------------------------
+  # 1) Build & test both services
+  # ---------------------------------
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      # ===== Backend =====
+      - name: Install backend deps
+        working-directory: backend
+        run: npm ci
+
+      - name: Lint backend
+        working-directory: backend
+        run: npm run lint --if-present
+
+      - name: Test backend
+        working-directory: backend
+        run: npm test --if-present
+
+      # ===== Frontend =====
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm install
+
+      - name: Lint frontend
+        working-directory: frontend
+        run: npm run lint --if-present
+
+      - name: Test frontend
+        working-directory: frontend
+        run: npm test --if-present
+
+  # ---------------------------------
+  # 2) Build & push Docker images
+  # ---------------------------------
+  build-and-push:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # Backend image
+      - name: Build & push backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend-node
+          push: true
+          tags: |
+            ${{ env.BACKEND_IMAGE }}:latest
+            ${{ env.BACKEND_IMAGE }}:${{ github.sha }}
+
+      # Frontend image
+      - name: Build & push frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          push: true
+          tags: |
+            ${{ env.FRONTEND_IMAGE }}:latest
+            ${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
+
+  # ---------------------------------
+  # 3) Deploy to Kubernetes (k3s/k3d)
+  # ---------------------------------
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    environment: dev
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure kubectl
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBE_CONFIG }}" > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Apply base manifests
+        run: kubectl apply -f k8s/monitoring.yaml
+
+      - name: Update backend deployment image
+        run: |
+          kubectl set image deployment/monitoring-backend \
+            backend=${{ env.BACKEND_IMAGE }}:${{ github.sha }} \
+            -n monitoring
+
+      - name: Update frontend deployment image
+        run: |
+          kubectl set image deployment/monitoring-frontend \
+            frontend=${{ env.FRONTEND_IMAGE }}:${{ github.sha }} \
+            -n monitoring
+
+      - name: Wait for rollout
+        run: |
+          kubectl rollout status deployment/monitoring-backend -n monitoring
+          kubectl rollout status deployment/monitoring-frontend -n monitoring

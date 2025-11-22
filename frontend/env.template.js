@@ -1,0 +1,4 @@
+window.RUNTIME_CONFIG = {
+    REACT_APP_API_BASE_URL: "$REACT_APP_API_BASE_URL"
+  };
+  
