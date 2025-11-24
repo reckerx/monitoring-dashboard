@@ -23,7 +23,7 @@ RUN npm run build
 FROM nginx:1.27-alpine AS runner
 
 # Copy build output to Nginx html directory
-COPY --from=build /app/build /usr/share/nginx/html/env.js
+COPY --from=build /app/build /usr/share/nginx/html
 
 # (Optional) custom nginx.conf can be copied here if you have one
 # COPY nginx.conf /etc/nginx/conf.d/default.conf
