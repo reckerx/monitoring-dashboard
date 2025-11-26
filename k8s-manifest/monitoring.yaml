@@ -36,7 +36,7 @@ spec:
     spec:
       containers:
         - name: monitoring-backend
-          image: monitoring-backend:latest
+          image: raunaknamdeo/monitoringdashboard-backend:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000
@@ -107,10 +107,13 @@ spec:
     spec:
       containers:
         - name: monitoring-frontend
-          image: monitoring-frontend:latest
+          image: raunaknamdeo/monitoringdashboard-frontend:v3
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
+          env:
+            - name: REACT_APP_API_BASE_URL
+              value: "http://localhost:30080"
           resources:
             requests:
               cpu: "50m"
