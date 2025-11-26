@@ -7,8 +7,8 @@ on:
     branches: [ "main" ]
 
 env:
-  BACKEND_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/monitoringdashboard-backend
-  FRONTEND_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/monitoringdashboard-frontend
+  BACKEND_IMAGE: raunaknamdeo/monitoringdashboard-backend
+  FRONTEND_IMAGE: raunaknamdeo/monitoringdashboard-frontend
 
 jobs:
   # ---------------------------------
@@ -67,7 +67,7 @@ jobs:
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          username: raunaknamdeo
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       # Backend image
@@ -87,7 +87,7 @@ jobs:
           context: ./frontend
           push: true
           tags: |
-            ${{ env.FRONTEND_IMAGE }}:latest
+            ${{ env.FRONTEND_IMAGE }}:v3
             ${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
 
   # ---------------------------------
